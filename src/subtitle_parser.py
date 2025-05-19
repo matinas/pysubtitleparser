@@ -2,40 +2,53 @@ import math
 import os
 import re
 import sys
+from arguments import *
+
+DEBUG = False
 
 def main():
     
-    if len(sys.argv) < 6:
+    try:
+        args:Arguments = read_arguments(sys.argv[1:])
+    except ValueError as e:
+        print(e)
         print_usage()
         exit()
 
-    path = sys.argv[1]
-    filename = sys.argv[2]
-    starting_block = int(sys.argv[3])
-    ending_block = int(sys.argv[4])
-    shift_amount = sys.argv[5]
+    path = args.path
+    filename = args.filename
+    shift_amount = args.shift_amount
+    starting_block = args.starting_block
+    ending_block = args.ending_block
+    starting_phrase = args.starting_phrase
 
     seconds_to_shift = math.trunc(float(shift_amount))
     miliseconds_to_shift = int(round(float(shift_amount) - seconds_to_shift, 3) * 1000)
 
     print('Path: ', path)
     print('Filename: ', filename)
-    print('Starting block: ', starting_block)
-    print('Ending block: ', ending_block)
     print('Seconds to shift: ', seconds_to_shift)
     print('Miliseconds to shift: ', miliseconds_to_shift)
+    print('Starting block: ', starting_block)
+    print('Ending block: ', ending_block)
+    print('Starting phrase: ', starting_phrase)
+
+
+    if (not starting_block): # we need to search the file and find the actual starting line based on the starting phrase
+        print('TODO!')
+
 
     extension = filename.split('.')[1]
     filename = filename.split('.')[0]
 
-    originalFilename = path + f'\\{filename}.{extension}'
-    tempFilename = path + f'\\{filename}-tmp.{extension}'
+    original_filename = path + f'\\{filename}.{extension}'
+    temp_filename = path + f'\\{filename}-tmp.{extension}'
 
     # open the subtitle file in read mode
-    file = open(originalFilename, "r")
+    file = open(original_filename, "r")
 
     # create new file
-    with open(tempFilename, 'w') as updated_file:
+    with open(temp_filename, 'w') as updated_file:
 
         current_block_lines = []
         last_subtitle_block_num = -1
@@ -48,7 +61,7 @@ def main():
                 # write all the already-updated lines of the current block, if any
                 if len(current_block_lines) > 0:
                     write_current_block(updated_file, current_block_lines)
-                    print(f'Finished updating subtitle block #{last_subtitle_block_num}')
+                    if (DEBUG): print(f'Finished updating subtitle block #{last_subtitle_block_num}')
                     current_block_lines.clear()
                 
                 # get ready to start processing the next block...
@@ -57,7 +70,7 @@ def main():
 
                 last_subtitle_block_num = current_block_num
                 current_block_lines.append(line)
-                print(f'Subtitle block #{current_block_num} will start to be updated')
+                if (DEBUG): print(f'Subtitle block #{current_block_num} will start to be updated')
 
         # at this point we will have the last block in the array, still not written, so we need to write it into the file
         write_current_block(updated_file, current_block_lines)
@@ -67,8 +80,8 @@ def main():
     updated_file.close()
 
     # remove the original file and rename the temp file to the original (workaround to avoid writing directly to the original, which may be messy)
-    os.remove(originalFilename)
-    os.rename(tempFilename, originalFilename)
+    os.remove(original_filename)
+    os.rename(temp_filename, original_filename)
 
 def write_current_block(file, block_lines_array):
     for line in block_lines_array:
@@ -128,11 +141,13 @@ def update_timestamp(hours_str, minutes_str, seconds_str, miliseconds_str, secon
 
     return updated_timestamp
 
-def print_usage():
+def print_tool_description():
     print('This tool is useful when subtitle files are shifted off with respect to the movie file, allowing to update the timestamps by a specified amount of seconds either backwards or forward')
     print('Currently supported subtitle formats: SRT (SubRip Subtitle file)\n')
+
+def print_usage():
     print('USAGE: subtitle_parser.py absolute_path filename starting_line ending_line shift_amount')
-    print('EXAMPLE: py .\subtitle_parser.py "D:\Downloads\American Horror Story\S02 - Asylum (2012)\S02E01" "S02E01 (1080p).srt" 200 300 3.5\n')
+    print('EXAMPLE: py .\\subtitle_parser.py "D:\\Downloads\\American Horror Story\\S02 - Asylum (2012)\\S02E01" "S02E01 (1080p).srt" 200 300 3.5\n')
     print('  - absolute_path: absolute path where the subtitle file to be updates is located in the file system')
     print('  - filename: subtitle file name including extension. The resulting modified subtitle file will be created in the same path with name filename-updated.ext')
     print('  - starting_block: number of the subtitle block from which timestamps will start being updated')
